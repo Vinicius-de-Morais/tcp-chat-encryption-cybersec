@@ -7,7 +7,7 @@ use std::{
 };
 
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -16,7 +16,7 @@ use ratatui::{
     backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Style},
-    text::{Span},
+    text::Span,
     widgets::{Block, Borders, Paragraph},
     Terminal,
 };
@@ -91,10 +91,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .margin(1)
-                .constraints([
-                    Constraint::Min(1),
-                    Constraint::Length(3),
-                ])
+                .constraints([Constraint::Min(1), Constraint::Length(3)])
                 .split(size);
 
             let text: Vec<ratatui::text::Line> = messages
@@ -118,8 +115,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .block(Block::default().borders(Borders::ALL).title("Chat"))
                 .alignment(Alignment::Left);
 
-            let input_block = Paragraph::new(input.as_str())
-                .block(Block::default().borders(Borders::ALL).title("Type a message"));
+            let input_block = Paragraph::new(input.as_str()).block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Type a message"),
+            );
 
             f.render_widget(msg_block, chunks[0]);
             f.render_widget(input_block, chunks[1]);
@@ -128,24 +128,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Handle key events
         if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
-                match key.code {
-                    KeyCode::Char(c) => input.push(c),
-                    KeyCode::Backspace => {
-                        input.pop();
-                    }
-                    KeyCode::Enter => {
-                        if !input.trim().is_empty() {
-                            let msg = input.clone();
-                            messages.push(Message {
-                                content: msg.clone(),
-                                is_mine: true,
-                            });
-                            send_message(&mut stream, &msg);
-                            input.clear();
+                if key.kind == KeyEventKind::Press {
+                    match key.code {
+                        KeyCode::Char(c) => input.push(c),
+                        KeyCode::Backspace => {
+                            input.pop();
                         }
+                        KeyCode::Enter => {
+                            if !input.trim().is_empty() {
+                                let msg = input.clone();
+                                messages.push(Message {
+                                    content: msg.clone(),
+                                    is_mine: true,
+                                });
+                                send_message(&mut stream, &msg);
+                                input.clear();
+                            }
+                        }
+                        KeyCode::Esc => break,
+                        _ => {}
                     }
-                    KeyCode::Esc => break,
-                    _ => {}
                 }
             }
         }
