@@ -1,6 +1,6 @@
-use std::fmt;
+use std::{fmt, ops::Index};
 
-use crate::cipher::playfair::helper::Unique;
+use crate::ciphers::playfair::helper::Unique;
 
 pub struct KeyMatrix {
     original_key: String,
@@ -41,6 +41,62 @@ impl KeyMatrix {
             contents,
         };
     }
+
+    pub fn get_position(&self, mut ch: char) -> Pos {
+        ch = ch.to_ascii_uppercase();
+
+        assert!(ch >= 'A' && ch <= 'Z', "Caractere inválido!");
+
+        let idx = self.contents.iter().position(|&r| r == ch).unwrap();
+
+        let row = idx / 5;
+        let column = idx % 5;
+
+        return Pos { row, column };
+    }
+
+    pub fn get_char(&self, position: &Pos) -> char {
+        assert!(position.row >= 0 && position.row < 5);
+        assert!(position.column >= 0 && position.column < 5);
+
+        return self.contents[position.row * 5 + position.column];
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Pos {
+    pub row: usize,
+    pub column: usize,
+}
+
+impl Pos {
+    pub fn add_row(&self, n: usize) -> Pos {
+        Pos {
+            row: (self.row + n) % 5,
+            column: self.column,
+        }
+    }
+
+    pub fn add_column(&self, n: usize) -> Pos {
+        Pos {
+            row: self.row,
+            column: (self.column + n) % 5,
+        }
+    }
+
+    pub fn sub_row(&self, n: usize) -> Pos {
+        Pos {
+            row: (self.row + 5 + n) % 5,
+            column: self.column,
+        }
+    }
+
+    pub fn sub_column(&self, n: usize) -> Pos {
+        Pos {
+            row: self.row,
+            column: (self.column + 5 + n) % 5,
+        }
+    }
 }
 
 impl fmt::Display for KeyMatrix {
@@ -64,6 +120,16 @@ mod tests {
     #[test]
     fn key_matrix_igual_ao_pdf() {
         let matrix = KeyMatrix::new("INFORMATICA".to_string());
+        eprintln!("{}", matrix);
+        assert_eq!(
+            matrix.contents.to_vec(),
+            "JNFORMATCBDEGHKLPQSUVWXYZ".chars().collect::<Vec<char>>() // matriz-chave dada no PDF da atividade
+        )
+    }
+
+    #[test]
+    fn key_matrix_filtros_caracteres() {
+        let matrix = KeyMatrix::new("infoR175**'':::  4234 23MATICAAAAAAAAAAAAAA".to_string());
         eprintln!("{}", matrix);
         assert_eq!(
             matrix.contents.to_vec(),
