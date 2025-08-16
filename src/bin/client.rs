@@ -21,6 +21,8 @@ use ratatui::{
     Terminal,
 };
 
+pub mod cypher;
+
 /// Representa uma mensagem no chat
 #[derive(Debug, Clone)]
 struct Message {

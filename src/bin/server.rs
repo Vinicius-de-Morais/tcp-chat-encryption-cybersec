@@ -1,5 +1,5 @@
-use std::net::{TcpListener, TcpStream};
 use std::io::{BufRead, BufReader, Write};
+use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -24,7 +24,12 @@ fn handle_client(mut stream: TcpStream, clients: Clients) {
                 let clients = clients.lock().unwrap();
                 for client in clients.iter() {
                     if client.peer_addr().unwrap() != peer_addr {
-                        let _ = writeln!(client.try_clone().unwrap(), "{}: {}", peer_addr, buffer.trim());
+                        let _ = writeln!(
+                            client.try_clone().unwrap(),
+                            "{}: {}",
+                            peer_addr,
+                            buffer.trim()
+                        );
                     }
                 }
             }
