@@ -1,4 +1,5 @@
 pub mod playfair;
+pub mod vigenere;
 
 pub trait Cipher {
     // deixei &mut self pq algumas cifras no futuro vão mutar o estado interno (tipo aquelas com rolling key)

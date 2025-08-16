@@ -9,14 +9,14 @@ Esse é um projeto de cyberseguraça para exercitar o conhecimento de cifras.
 1. O username vai ser gerado automaticamente pelo servidor.
 2. Seleção de como o usuário vai encriptar a mensagem. Assim como a chave.
 3. Para decriptar uma mensagem o usuário clica na mensagem e digita a palavra passe.
-   3.1. O client vai tentar fazer bruteforce pra quebrar a chave.
+3.1. O client vai tentar fazer bruteforce pra quebrar a chave.
 
 ## Cifras
 
-- Crifra de César
-- Substituição Monoalfabética
-- Cifra de Playfair
-- Cifra de Vigenère
+[] Crifra de César
+[] Substituição Monoalfabética
+[x] Cifra de Playfair
+[x] Cifra de Vigenère
 
 ## Regras e instruções
 
