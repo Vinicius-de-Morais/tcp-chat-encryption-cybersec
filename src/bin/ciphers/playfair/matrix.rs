@@ -1,4 +1,4 @@
-use std::{fmt, ops::Index};
+use std::fmt;
 
 use crate::ciphers::playfair::helper::Unique;
 
@@ -56,8 +56,8 @@ impl KeyMatrix {
     }
 
     pub fn get_char(&self, position: &Pos) -> char {
-        assert!(position.row >= 0 && position.row < 5);
-        assert!(position.column >= 0 && position.column < 5);
+        assert!(position.row < 5);
+        assert!(position.column < 5);
 
         return self.contents[position.row * 5 + position.column];
     }
@@ -67,36 +67,6 @@ impl KeyMatrix {
 pub struct Pos {
     pub row: usize,
     pub column: usize,
-}
-
-impl Pos {
-    pub fn add_row(&self, n: usize) -> Pos {
-        Pos {
-            row: (self.row + n) % 5,
-            column: self.column,
-        }
-    }
-
-    pub fn add_column(&self, n: usize) -> Pos {
-        Pos {
-            row: self.row,
-            column: (self.column + n) % 5,
-        }
-    }
-
-    pub fn sub_row(&self, n: usize) -> Pos {
-        Pos {
-            row: (self.row + 5 + n) % 5,
-            column: self.column,
-        }
-    }
-
-    pub fn sub_column(&self, n: usize) -> Pos {
-        Pos {
-            row: self.row,
-            column: (self.column + 5 + n) % 5,
-        }
-    }
 }
 
 impl fmt::Display for KeyMatrix {
