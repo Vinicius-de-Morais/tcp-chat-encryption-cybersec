@@ -21,7 +21,7 @@ use ratatui::{
     Terminal,
 };
 
-pub mod cypher;
+pub mod cipher;
 
 /// Representa uma mensagem no chat
 #[derive(Debug, Clone)]

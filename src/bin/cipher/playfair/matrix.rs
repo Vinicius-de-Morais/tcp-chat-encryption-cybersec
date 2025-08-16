@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::cypher::playfair::helper::Unique;
+use crate::cipher::playfair::helper::Unique;
 
 pub struct KeyMatrix {
     original_key: String,

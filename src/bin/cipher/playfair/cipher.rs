@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt};
 
-use crate::cypher::{playfair::matrix::KeyMatrix, Cypher};
+use crate::cipher::{playfair::matrix::KeyMatrix, Cipher};
 
 /// A group of two successive letters
 type Digraph = [char; 2];
@@ -30,13 +30,13 @@ impl Playfair {
     }
 }
 
-impl Cypher for Playfair {
-    fn to_cyphertext(&mut self, plaintext: String) -> String {
+impl Cipher for Playfair {
+    fn to_ciphertext(&mut self, plaintext: String) -> String {
         //   let digraphs = Playfair::explode(&plaintext);
         todo!()
     }
 
-    fn to_plaintext(&mut self, cyphertext: String) -> String {
+    fn to_plaintext(&mut self, ciphertext: String) -> String {
         //    let digraphs = Playfair::explode(&plaintext);
         todo!()
     }
