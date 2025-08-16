@@ -25,7 +25,7 @@ impl Playfair {
             .map(|c| if c == 'I' { 'J' } else { c }) // substituir 'i' por 'j'
             .collect();
 
-        if !filtered_chars.len().is_multiple_of(2) {
+        if filtered_chars.len() % 2 != 0 {
             filtered_chars.push('X'); // fazer padding com letra X
         }
 
@@ -53,7 +53,7 @@ impl Playfair {
 
     fn prepare_cipher_input(source: &String) -> Vec<Digraph> {
         assert!(
-            source.len().is_multiple_of(2),
+            source.len() % 2 == 0,  
             "texto cifrado não é múltiplo de 2, entrada inválida"
         );
 
