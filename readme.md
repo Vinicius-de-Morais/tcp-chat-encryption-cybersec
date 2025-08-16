@@ -13,10 +13,10 @@ Esse é um projeto de cyberseguraça para exercitar o conhecimento de cifras.
 
 ## Cifras
 
-[] Crifra de César
-[] Substituição Monoalfabética
-[x] Cifra de Playfair
-[x] Cifra de Vigenère
+- [] Crifra de César
+- [] Substituição Monoalfabética
+- [x] Cifra de Playfair
+- [x] Cifra de Vigenère
 
 ## Regras e instruções
 
