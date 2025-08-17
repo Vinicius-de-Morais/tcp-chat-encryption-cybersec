@@ -30,3 +30,27 @@ impl Cesar {
         self.process(ciphertext, false)
     }
 }
+
+impl Cipher for Cesar {
+    fn to_ciphertext(&mut self, plaintext: &String) -> String {
+        self.process(plaintext, true)
+    }
+
+    fn to_plaintext(&mut self, ciphertext: &String) -> String {
+        self.process(ciphertext, false)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn classic_example() {
+        let mut v = Cesar::new(3);
+        let cipher = v.to_ciphertext(&"EVIDENCIAS".to_string());
+        assert_eq!(cipher, "HYLGHQFLDV");
+        let plain = v.to_plaintext(&cipher);
+        assert_eq!(plain, "EVIDENCIAS");
+    }
+}
