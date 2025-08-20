@@ -42,8 +42,6 @@ impl Playfair {
             }
         }
 
-        println!("#len: {}", separated.len());
-
         // separar em digrafos
         return separated
             .chunks_exact(2)
@@ -53,8 +51,9 @@ impl Playfair {
 
     fn prepare_cipher_input(source: &String) -> Vec<Digraph> {
         assert!(
-            source.len() % 2 == 0,  
-            "texto cifrado não é múltiplo de 2, entrada inválida"
+            source.len() % 2 == 0,
+            "texto cifrado: \"{}\" não é múltiplo de 2, entrada inválida",
+            source
         );
 
         let filtered_chars: Vec<char> = source
