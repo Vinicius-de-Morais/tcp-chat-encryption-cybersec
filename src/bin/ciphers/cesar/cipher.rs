@@ -1,5 +1,9 @@
 use crate::ciphers::Cipher;
 
+pub struct Cesar {
+    key: i8, // chave de deslocamento
+}
+
 impl Cesar {
     pub fn new(key: i8) -> Self {
         return Cesar { key };

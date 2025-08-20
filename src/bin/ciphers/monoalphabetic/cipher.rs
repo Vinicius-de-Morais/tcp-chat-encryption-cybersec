@@ -1,4 +1,8 @@
-use crate::ciphers::Cipher;
+use crate::ciphers::{playfair::helper::Unique, Cipher};
+
+pub struct Monoalphabetic {
+    mapping: Vec<char>,
+}
 
 impl Monoalphabetic {
     fn to_plaintext(&mut self, ciphertext: &String) -> String {
@@ -9,7 +13,7 @@ impl Monoalphabetic {
         self.process(plaintext, true)
     }
 
-    fn new(key: String) -> Self {
+    pub fn new(key: String) -> Self {
         let mut mapping: Vec<char> = key
             .chars()
             .filter(|c| c.is_ascii_alphabetic())
