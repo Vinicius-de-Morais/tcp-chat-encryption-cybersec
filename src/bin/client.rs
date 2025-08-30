@@ -490,6 +490,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         1 => CipherType::Monoalphabetic,
                                         2 => CipherType::Playfair,
                                         3 => CipherType::Vigenere,
+                                        4 => CipherType::Rc4,
                                         _ => CipherType::Caesar,
                                     };
                                     key_input.clear();
