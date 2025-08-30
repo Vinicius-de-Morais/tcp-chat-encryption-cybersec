@@ -16,6 +16,7 @@ use crate::ciphers::cesar::Cesar;
 use crate::ciphers::monoalphabetic::Monoalphabetic;
 use crate::ciphers::playfair::cipher::Playfair;
 use crate::ciphers::vigenere::Vigenere;
+use crate::ciphers::rc4::cipher::Rc4;
 use ciphers::Cipher;
 
 use ratatui::{
@@ -100,9 +101,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Monoalphabetic,
         Playfair,
         Vigenere,
+        Rc4
     }
     let mut selected_cipher = CipherType::Playfair;
-    let cipher_names = ["Caesar", "Monoalphabetic", "Playfair", "Vigenere"];
+    let cipher_names = ["Caesar", "Monoalphabetic", "Playfair", "Vigenere", "Rc4"];
     let mut cipher_idx = 2;
 
     // Controle de texto separado para campo de mensagem e campo de chave
@@ -231,6 +233,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     CipherType::Monoalphabetic => "Chave para decriptar (26 letras)",
                     CipherType::Playfair => "Chave para decriptar (palavra)",
                     CipherType::Vigenere => "Chave para decriptar (palavra)",
+                    CipherType::Rc4 => "Chave para decriptar (palavra)",
                 };
                 Some(
                     Paragraph::new(decrypt_key_input.as_str())
@@ -272,6 +275,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 CipherType::Monoalphabetic => "Chave (26 letras)",
                 CipherType::Playfair => "Chave (palavra)",
                 CipherType::Vigenere => "Chave (palavra)",
+                CipherType::Rc4 => "Chave (palavra)",
             };
             let key_block_1 = Paragraph::new(key_input.as_str())
                 .block(
@@ -367,6 +371,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                 );
                                                 c.to_plaintext(&msg.content)
                                             }
+                                            CipherType::Rc4 => {
+                                                let mut c = Rc4::new(
+                                                    decrypt_key_input.trim().to_string(),
+                                                );
+                                                c.to_plaintext(&msg.content)
+                                            }
                                         };
                                         decrypted_text = Some(dec);
                                     }
@@ -436,6 +446,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                         Vigenere::new(key_input.trim().to_string());
                                                     c.to_ciphertext(&msg)
                                                 }
+                                                CipherType::Rc4 => {
+                                                    let mut c =
+                                                        Rc4::new(key_input.trim().to_string());
+                                                    c.to_ciphertext(&msg)
+                                                }
                                             };
                                             messages.push(Message {
                                                 content: ciphered.clone(),
@@ -490,6 +505,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         1 => CipherType::Monoalphabetic,
                                         2 => CipherType::Playfair,
                                         3 => CipherType::Vigenere,
+                                        4 => CipherType::Rc4,
                                         _ => CipherType::Caesar,
                                     };
                                     key_input.clear();

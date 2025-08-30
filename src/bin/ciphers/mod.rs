@@ -2,6 +2,7 @@ pub mod playfair;
 pub mod vigenere;
 pub mod cesar;
 pub mod monoalphabetic;
+pub mod rc4;
 
 pub trait Cipher {
     // deixei &mut self pq algumas cifras no futuro vão mutar o estado interno (tipo aquelas com rolling key)
