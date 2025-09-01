@@ -15,8 +15,9 @@ use crossterm::{
 use crate::ciphers::cesar::Cesar;
 use crate::ciphers::monoalphabetic::Monoalphabetic;
 use crate::ciphers::playfair::cipher::Playfair;
-use crate::ciphers::vigenere::Vigenere;
 use crate::ciphers::rc4::cipher::Rc4;
+use crate::ciphers::rc4_bortoli::cipher::Rc4Bortoli;
+use crate::ciphers::vigenere::Vigenere;
 use ciphers::Cipher;
 
 use ratatui::{
@@ -101,10 +102,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Monoalphabetic,
         Playfair,
         Vigenere,
-        Rc4
+        Rc4,
+        Rc4Bortoli,
     }
     let mut selected_cipher = CipherType::Playfair;
-    let cipher_names = ["Caesar", "Monoalphabetic", "Playfair", "Vigenere", "Rc4"];
+    let cipher_names = [
+        "Caesar",
+        "Monoalphabetic",
+        "Playfair",
+        "Vigenere",
+        "Rc4",
+        "Rc4 (Bortoli)",
+    ];
     let mut cipher_idx = 2;
 
     // Controle de texto separado para campo de mensagem e campo de chave
@@ -234,6 +243,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     CipherType::Playfair => "Chave para decriptar (palavra)",
                     CipherType::Vigenere => "Chave para decriptar (palavra)",
                     CipherType::Rc4 => "Chave para decriptar (palavra)",
+                    CipherType::Rc4Bortoli => "Chave para decriptar (palavra)",
                 };
                 Some(
                     Paragraph::new(decrypt_key_input.as_str())
@@ -276,6 +286,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 CipherType::Playfair => "Chave (palavra)",
                 CipherType::Vigenere => "Chave (palavra)",
                 CipherType::Rc4 => "Chave (palavra)",
+                CipherType::Rc4Bortoli => "Chave (palavra)",
             };
             let key_block_1 = Paragraph::new(key_input.as_str())
                 .block(
@@ -372,9 +383,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                 c.to_plaintext(&msg.content)
                                             }
                                             CipherType::Rc4 => {
-                                                let mut c = Rc4::new(
-                                                    decrypt_key_input.trim().to_string(),
-                                                );
+                                                let mut c =
+                                                    Rc4::new(decrypt_key_input.trim().to_string());
+                                                c.to_plaintext(&msg.content)
+                                            }
+                                            CipherType::Rc4Bortoli => {
+                                                let mut c =
+                                                    Rc4::new(decrypt_key_input.trim().to_string());
                                                 c.to_plaintext(&msg.content)
                                             }
                                         };
@@ -447,6 +462,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                     c.to_ciphertext(&msg)
                                                 }
                                                 CipherType::Rc4 => {
+                                                    let mut c =
+                                                        Rc4::new(key_input.trim().to_string());
+                                                    c.to_ciphertext(&msg)
+                                                }
+                                                CipherType::Rc4Bortoli => {
                                                     let mut c =
                                                         Rc4::new(key_input.trim().to_string());
                                                     c.to_ciphertext(&msg)
