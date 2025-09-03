@@ -19,6 +19,7 @@ use crate::ciphers::rc4::cipher::Rc4;
 use crate::ciphers::rc4_bortoli::cipher::Rc4Bortoli;
 use crate::ciphers::vigenere::Vigenere;
 use ciphers::Cipher;
+use textwrap::wrap;
 
 use ratatui::{
     backend::CrosstermBackend,
@@ -158,60 +159,81 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let line = msg.content.clone();
                 // Se selecionada, aplica bloco visual
                 if is_selected {
-                    // Espaço extra acima
                     text.push(ratatui::text::Line::from(vec![Span::raw("")]));
-                    // Bloco visual com borda arredondada e cor azul
                     let border_color = Color::Blue;
                     let block_title = if msg.is_mine {
                         "Você".to_string()
                     } else {
                         "Recebida | Shift+Enter para decriptar".to_string()
                     };
-                    // Mensagem dentro do bloco
-                    let mut inner_lines = vec![ratatui::text::Line::from(vec![Span::styled(
-                        line.clone(),
-                        line_style.add_modifier(ratatui::style::Modifier::BOLD),
-                    )])];
-                    // Tradução (decriptada) sempre embaixo da mensagem selecionada
-                    if decrypted_text.is_some() && !msg.is_mine {
-                        let dec = decrypted_text.as_ref().unwrap();
-                        inner_lines.push(ratatui::text::Line::from(vec![Span::styled(
-                            format!("→ {}", dec),
-                            Style::default().fg(Color::Yellow).add_modifier(
-                                ratatui::style::Modifier::ITALIC | ratatui::style::Modifier::BOLD,
-                            ),
-                        )]));
-                    }
-                    // Renderiza bloco visual (simula bloco com linhas)
+
                     let width = (size.width - 8).max(20) as usize;
+                    let content_width = (width - 4).max(1);
+
+                    // Borda de cima
                     let border_top = format!(
                         "╭{:─<w$}╮ {}",
                         "",
                         block_title,
                         w = width - 2 - block_title.len().min(width - 2)
                     );
-                    let border_bot = format!("╰{:─<w$}╯", "", w = width - 2);
                     text.push(ratatui::text::Line::from(vec![Span::styled(
                         border_top,
                         Style::default().fg(border_color),
                     )]));
-                    for l in &inner_lines {
+
+                    // Quebra a mensagem original em um VETOR de linhas
+                    let wrapped_message_lines = wrap(&line, content_width);
+
+                    // FAZ UM LOOP sobre cada linha do vetor
+                    for single_line in wrapped_message_lines {
+                        // 3. Formata CADA LINHA INDIVIDUALMENTE
                         let content = if msg.is_mine {
-                            format!("{:>width$}", l.spans[0].content, width = width - 4)
+                            format!("{:>width$}", single_line, width = content_width)
                         } else {
-                            format!("{:<width$}", l.spans[0].content, width = width - 4)
+                            format!("{:<width$}", single_line, width = content_width)
                         };
+                        // Adiciona a linha formatada ao `text`
                         text.push(ratatui::text::Line::from(vec![
                             Span::styled("│ ", Style::default().fg(border_color)),
-                            Span::styled(content, l.spans[0].style),
+                            Span::styled(
+                                content,
+                                line_style.add_modifier(ratatui::style::Modifier::BOLD),
+                            ),
                             Span::styled(" │", Style::default().fg(border_color)),
                         ]));
                     }
+
+                    // A mesma lógica de loop para o texto decriptado
+                    if let Some(dec) = decrypted_text.as_ref() {
+                        if !msg.is_mine {
+                            let full_dec_text = format!("→ {}", dec);
+                            let wrapped_dec_lines = wrap(&full_dec_text, content_width);
+
+                            for single_dec_line in wrapped_dec_lines {
+                                let content =
+                                    format!("{:<width$}", single_dec_line, width = content_width);
+                                text.push(ratatui::text::Line::from(vec![
+                                    Span::styled("│ ", Style::default().fg(border_color)),
+                                    Span::styled(
+                                        content,
+                                        Style::default().fg(Color::Yellow).add_modifier(
+                                            ratatui::style::Modifier::ITALIC
+                                                | ratatui::style::Modifier::BOLD,
+                                        ),
+                                    ),
+                                    Span::styled(" │", Style::default().fg(border_color)),
+                                ]));
+                            }
+                        }
+                    }
+
+                    // Borda de baixo
+                    let border_bot = format!("╰{:─<w$}╯", "", w = width - 2);
                     text.push(ratatui::text::Line::from(vec![Span::styled(
                         border_bot,
                         Style::default().fg(border_color),
                     )]));
-                    // Espaço extra abaixo
                     text.push(ratatui::text::Line::from(vec![Span::raw("")]));
                 } else {
                     // Mensagem normal

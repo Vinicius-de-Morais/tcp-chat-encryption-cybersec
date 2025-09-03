@@ -47,14 +47,16 @@ impl Cipher for Cesar {
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::write;
+
     use super::*;
 
     #[test]
     fn classic_example() {
         let mut v = Cesar::new(3);
-        let cipher = v.to_ciphertext(&"EVIDENCIAS".to_string());
-        assert_eq!(cipher, "HYLGHQFLDV");
+        let cipher = v.to_ciphertext(&"EVIDENCIAS fff".to_string());
+        assert_eq!(cipher, "HYLGHQFLDV iii");
         let plain = v.to_plaintext(&cipher);
-        assert_eq!(plain, "EVIDENCIAS");
+        assert_eq!(plain, "EVIDENCIAS fff");
     }
 }
