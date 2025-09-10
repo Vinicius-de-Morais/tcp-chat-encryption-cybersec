@@ -164,7 +164,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let block_title = if msg.is_mine {
                         "Você".to_string()
                     } else {
-                        "Recebida | Shift+Enter para decriptar".to_string()
+                        "Recebida | F2 para decriptar".to_string()
                     };
 
                     let width = (size.width - 8).max(20) as usize;
@@ -411,7 +411,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                             }
                                             CipherType::Rc4Bortoli => {
                                                 let mut c =
-                                                    Rc4::new(decrypt_key_input.trim().to_string());
+                                                    Rc4Bortoli::new(decrypt_key_input.trim().to_string());
                                                 c.to_plaintext(&msg.content)
                                             }
                                         };
@@ -445,10 +445,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             continue;
                         } else {
                             match key.code {
+                                KeyCode::F(2) => {
+                                    if let Some(msg) = messages.get(selected_msg_idx) {
+                                        if !msg.is_mine {
+                                            decrypt_mode = true;
+                                            decrypt_key_input.clear();
+                                        }
+                                    }
+                                }
+
                                 KeyCode::Enter => {
                                     if key
-                                        .modifiers
-                                        .contains(crossterm::event::KeyModifiers::SHIFT)
+                                    .modifiers
+                                    .contains(crossterm::event::KeyModifiers::SHIFT)
                                     {
                                         if let Some(msg) = messages.get(selected_msg_idx) {
                                             if !msg.is_mine {
@@ -558,10 +567,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             }
                         }
                     }
-                }
-                Event::Mouse(_) => {
-                    // Desabilitado: seleção de mensagem para decriptação via clique do mouse
-                    // A seleção e entrada no modo de decriptação é feita apenas via Shift+Enter
                 }
                 _ => {}
             }

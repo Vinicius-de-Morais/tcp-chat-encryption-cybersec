@@ -43,35 +43,23 @@ impl Rc4 {
         }
     }
 
-    pub fn process(&mut self, plaintext: String) -> Vec<u8>{
-        let input = plaintext.as_bytes();
-
+    pub fn process_bytes(&mut self, input: &[u8]) -> Vec<u8> {
         let mut output = Vec::with_capacity(input.len());
-
         for &byte in input {
-            
-            // processo de "resgatar" os indexes.
             self.i = (self.i + 1) % ARRAY_SIZE;
             self.j = (self.j + self.s[self.i] as usize) % ARRAY_SIZE;
-
             self.s.swap(self.i, self.j);
             let t = (self.s[self.i] as usize + self.s[self.j] as usize) % ARRAY_SIZE;
-
-            // resgatar caractere K
             let k = self.s[t];
             output.push(byte ^ k);
         }
-
         self.decripted = output.clone();
-
-        // Imprime o output em hexadecimal para facilitar a validação
-        // print!("[ ");
-        // for byte in &output {
-        //     print!("{:02X} ", byte);
-        // }
-        // println!("]");
-
         output
+    }
+
+    // Keep the old process for compatibility
+    pub fn process(&mut self, plaintext: String) -> Vec<u8> {
+        self.process_bytes(plaintext.as_bytes())
     }
 
     fn swap(mut vec: Vec<u8>, pos_a: usize, pos_b: usize) {
@@ -81,25 +69,17 @@ impl Rc4 {
 
 impl Cipher for Rc4 {
     fn to_ciphertext(&mut self, plaintext: &String) -> String {
-        //String::from_utf8(self.process(plaintext.to_string())).unwrap()
-
-        let ascii_string: Vec<String> = self.process(plaintext.to_string())
-            .iter()
-            .map(|&x| x.to_string())
-            .collect();
-
-        ascii_string.join(" ")
+        let bytes = self.process_bytes(plaintext.as_bytes());
+        bytes.iter().map(|b| b.to_string()).collect::<Vec<_>>().join(" ")
     }
 
     fn to_plaintext(&mut self, ciphertext: &String) -> String {
-        //String::from_utf8(self.process(ciphertext.to_string())).unwrap()
-
-        let ascii_string: Vec<String> = self.process(ciphertext.to_string())
-            .iter()
-            .map(|&x| (x as usize).to_string())
-            .collect();
-
-        ascii_string.join(" ")
+        let bytes = ciphertext
+            .split_whitespace()
+            .map(|num| num.parse::<u8>().unwrap())
+            .collect::<Vec<u8>>();
+        let decrypted_bytes = self.process_bytes(&bytes);
+        String::from_utf8(decrypted_bytes).unwrap()
     }
 }
 
@@ -141,5 +121,42 @@ mod tests {
         let mut rc4 = Rc4::new(key.to_string());
         let cipher = rc4.process(plaintext.to_owned());
         assert_eq!(cipher, expected_cipher);
+    }
+
+    #[test]
+    fn test_rc4_cipher_trait_round_trip() {
+        let key = "testkey";
+        let plaintext = "Hello, RC4 Cipher!".to_string();
+        let mut rc4 = Rc4::new(key.to_string());
+        let ciphertext = rc4.to_ciphertext(&plaintext);
+        // ciphertext is not readable, but should not equal plaintext
+        assert_ne!(ciphertext, plaintext);
+
+        // New instance to reset state
+        let mut rc4_decrypt = Rc4::new(key.to_string());
+        let decrypted = rc4_decrypt.to_plaintext(&ciphertext);
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_rc4_cipher_trait_known_output() {
+        let key = "D&Ot)[YW";
+        let plaintext = "Cybersecurity melhor disciplina do curso.".to_string();
+        let expected_cipher = [
+            214, 32, 110, 109, 116, 251, 159, 133, 226, 76, 193, 253, 168, 73, 65, 197, 82, 72, 93, 68, 250, 55, 28, 202, 59, 77, 186, 27, 97, 24, 48, 54, 106, 38, 82, 214, 222, 20, 20, 13, 251
+        ];
+        let mut rc4 = Rc4::new(key.to_string());
+        let ciphertext = rc4.to_ciphertext(&plaintext);
+        // Agora o ciphertext é uma string de números separados por espaço
+        let cipher_bytes = ciphertext
+            .split_whitespace()
+            .map(|num| num.parse::<u8>().unwrap())
+            .collect::<Vec<u8>>();
+        assert_eq!(cipher_bytes, expected_cipher);
+
+        // Decrypt and check
+        let mut rc4_decrypt = Rc4::new(key.to_string());
+        let decrypted = rc4_decrypt.to_plaintext(&ciphertext);
+        assert_eq!(decrypted, plaintext);
     }
 }
