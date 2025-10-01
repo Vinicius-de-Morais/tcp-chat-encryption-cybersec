@@ -1,4 +1,5 @@
 pub mod cesar;
+pub mod des;
 pub mod monoalphabetic;
 pub mod playfair;
 pub mod rc4;
