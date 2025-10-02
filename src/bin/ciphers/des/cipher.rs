@@ -28,29 +28,23 @@ fn make_subkey(key: u64, it_number: usize) -> Vec<Bit> {
 
     let key_bits = get_bits(key);
     let mut encoded_pc1: Vec<Bit> = vec![];
-    println!("Bits da chave: {:?}", key_bits.bits());
 
     for pc1_value in PC1.iter() {
         let swapped_bit = key_bits.get((pc1_value - 1) as usize).unwrap();
         encoded_pc1.push(*swapped_bit);
     }
 
-    println!("pc1-encodado : {:?}", encoded_pc1.bits());
-
     let mut chunks = encoded_pc1.chunks_exact(28);
     let mut c: VecDeque<Bit> = VecDeque::from(chunks.next().unwrap().to_vec());
     let mut d: VecDeque<Bit> = VecDeque::from(chunks.next().unwrap().to_vec());
 
-    println!("half       : c={:?} d={:?}", c.bits(), d.bits());
     for i in 0..(it_number) {
         c.shift_left(KEY_SHIFT[i].into(), true);
         d.shift_left(KEY_SHIFT[i].into(), true);
     }
-    println!("half  <<   : c={:?} d={:?}", c.bits(), d.bits());
 
     let mut concat = c.clone();
     concat.extend(d);
-    println!("concat       : {:?}", concat.bits());
 
     // ate aqui beleza
 
@@ -60,7 +54,6 @@ fn make_subkey(key: u64, it_number: usize) -> Vec<Bit> {
         subkey.push(*swapped_bit);
     }
 
-    println!("subkey       : {:?}", subkey.bits());
     subkey
 }
 
@@ -77,23 +70,12 @@ fn permute_re(input: &Vec<Bit>) -> Vec<Bit> {
 
         assert_eq!(group.len(), 6, "group não tem 6 bits");
 
-        println!("group_{}      : {:?}", i + 1, group.bits());
-
         let group_number = group.to_u8();
         let row_no = ((group_number & 0b100000) >> 4) | (group_number & 0b1);
         let col_no = (group_number & 0b011110) >> 1;
 
         let sbox_val = SBOX_TABLE[i][row_no as usize][col_no as usize];
-        let mut sbox_val_bits = sbox_val.to_bit_vec();
-
-        println!(
-            "sbox[{}][{}][{}]: {} ({:?})",
-            i,
-            row_no,
-            col_no,
-            sbox_val,
-            sbox_val_bits.bits()
-        );
+        let sbox_val_bits = sbox_val.to_bit_vec();
 
         // como convertemos um u8 para Vec<Bit>, o Vec<Bit> tem 8 itens, mas sbox_val só retornaria 4 bits na realidade
         // então vamos descartar os 4 zeros iniciais
@@ -102,16 +84,12 @@ fn permute_re(input: &Vec<Bit>) -> Vec<Bit> {
         }
     }
 
-    println!("sboxed       : {:?}", sboxed);
-
     // permutacao do sboxed sobre ptable
     let mut permuted: Vec<Bit> = vec![];
     for pvalue in P_TABLE.iter() {
         let swapped_bit = sboxed.get((pvalue - 1) as usize).unwrap();
         permuted.push(*swapped_bit);
     }
-
-    println!("permuted     : {:?}", permuted);
 
     permuted
 }
@@ -131,9 +109,6 @@ fn bit_expansion(
 
     let exp_re_xor = expanded_re.xor(subkey);
 
-    println!("expanded_re  : {:?}", expanded_re);
-    println!("exp_re_xor   : {:?}", exp_re_xor);
-
     exp_re_xor
 }
 
@@ -145,15 +120,12 @@ pub enum DESMode {
 
 pub fn process(input: u64, key: u64, mode: DESMode) -> u64 {
     let input_bits = input.to_bit_vec();
-    println!("inpplain    : {:?}", input_bits);
 
     let mut input_permuted: Vec<Bit> = vec![];
     for idx in INITIAL_PERMUTATION_TABLE {
         let swapped_bit = input_bits.get((idx - 1) as usize).unwrap();
         input_permuted.push(*swapped_bit);
     }
-
-    println!("permut       : {:?}", input_permuted);
 
     let mut left: Vec<Bit> = input_permuted[0..32].into();
     let mut right: Vec<Bit> = input_permuted[32..64].into();
@@ -163,10 +135,6 @@ pub fn process(input: u64, key: u64, mode: DESMode) -> u64 {
             round_no = 17 - round_no;
         }
 
-        println!("round {}", round_no);
-        println!("left         : {:?}", left);
-        println!("right        : {:?}", right);
-
         let subkey = make_subkey(key, round_no);
 
         let re_expanded = bit_expansion(&right, &subkey);
@@ -174,9 +142,6 @@ pub fn process(input: u64, key: u64, mode: DESMode) -> u64 {
 
         let next_le = right.clone();
         let next_re = f_output.xor(&left);
-
-        println!("next_le      : {:?}", next_le.bits());
-        println!("next_re      : {:?}", next_re.bits());
 
         left = next_le;
         right = next_re;
@@ -196,8 +161,6 @@ pub fn process(input: u64, key: u64, mode: DESMode) -> u64 {
         let swapped_bit = concated.get((idx - 1) as usize).unwrap();
         final_reshuffle.push(*swapped_bit);
     }
-
-    println!("final: {:?}", final_reshuffle);
 
     final_reshuffle.to_u64()
 }
@@ -296,8 +259,6 @@ mod tests {
             make_subkey(key, 16),
             explode_bitstring("110010 100011 110100 000011 101110 000111 000000 110010")
         );
-
-        println!();
     }
 
     #[test]
