@@ -36,11 +36,25 @@ impl StringBit for VecDeque<Bit> {
     }
 }
 
-pub trait ToU64 {
+pub trait ToInteger {
+    fn to_u8(&self) -> u8;
     fn to_u64(&self) -> u64;
 }
 
-impl ToU64 for Vec<Bit> {
+impl ToInteger for Vec<Bit> {
+    fn to_u8(&self) -> u8 {
+        let mut reversed = Vec::from(self.clone());
+        reversed.reverse();
+
+        let mut n = 0u8;
+        for (i, bit) in reversed.iter().enumerate() {
+            let p = 2_u8.pow(i as u32) * (*bit as u8);
+            n += p;
+        }
+
+        n
+    }
+
     fn to_u64(&self) -> u64 {
         let mut reversed = Vec::from(self.clone());
         reversed.reverse();

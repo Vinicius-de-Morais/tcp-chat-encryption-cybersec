@@ -12,12 +12,11 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 // Importa as cifras
-use crate::ciphers::cesar::Cesar;
 use crate::ciphers::monoalphabetic::Monoalphabetic;
 use crate::ciphers::playfair::cipher::Playfair;
 use crate::ciphers::rc4::cipher::Rc4;
-use crate::ciphers::rc4_bortoli::cipher::Rc4Bortoli;
 use crate::ciphers::vigenere::Vigenere;
+use crate::ciphers::{cesar::Cesar, des::DES};
 use ciphers::Cipher;
 use textwrap::wrap;
 
@@ -26,7 +25,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Style},
     text::Span,
-    widgets::{Block, Borders, Paragraph},
+    widgets::Paragraph,
     Terminal,
 };
 
@@ -104,7 +103,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Playfair,
         Vigenere,
         Rc4,
-        Rc4Bortoli,
+        Des,
     }
     let mut selected_cipher = CipherType::Playfair;
     let cipher_names = [
@@ -113,7 +112,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Playfair",
         "Vigenere",
         "Rc4",
-        "Rc4 (Bortoli)",
+        "Des",
     ];
     let mut cipher_idx = 2;
 
@@ -265,7 +264,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     CipherType::Playfair => "Chave para decriptar (palavra)",
                     CipherType::Vigenere => "Chave para decriptar (palavra)",
                     CipherType::Rc4 => "Chave para decriptar (palavra)",
-                    CipherType::Rc4Bortoli => "Chave para decriptar (palavra)",
+                    CipherType::Des => "Chave para decriptar (hex)",
                 };
                 Some(
                     Paragraph::new(decrypt_key_input.as_str())
@@ -308,7 +307,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 CipherType::Playfair => "Chave (palavra)",
                 CipherType::Vigenere => "Chave (palavra)",
                 CipherType::Rc4 => "Chave (palavra)",
-                CipherType::Rc4Bortoli => "Chave (palavra)",
+                CipherType::Des => "Chave (hex)",
             };
             let key_block_1 = Paragraph::new(key_input.as_str())
                 .block(
@@ -409,9 +408,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                     Rc4::new(decrypt_key_input.trim().to_string());
                                                 c.to_plaintext(&msg.content)
                                             }
-                                            CipherType::Rc4Bortoli => {
+                                            CipherType::Des => {
                                                 let mut c =
-                                                    Rc4Bortoli::new(decrypt_key_input.trim().to_string());
+                                                    DES::new(&decrypt_key_input.trim().to_string());
                                                 c.to_plaintext(&msg.content)
                                             }
                                         };
@@ -456,8 +455,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                                 KeyCode::Enter => {
                                     if key
-                                    .modifiers
-                                    .contains(crossterm::event::KeyModifiers::SHIFT)
+                                        .modifiers
+                                        .contains(crossterm::event::KeyModifiers::SHIFT)
                                     {
                                         if let Some(msg) = messages.get(selected_msg_idx) {
                                             if !msg.is_mine {
@@ -497,9 +496,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                         Rc4::new(key_input.trim().to_string());
                                                     c.to_ciphertext(&msg)
                                                 }
-                                                CipherType::Rc4Bortoli => {
+                                                CipherType::Des => {
                                                     let mut c =
-                                                        Rc4::new(key_input.trim().to_string());
+                                                        DES::new(&key_input.trim().to_string());
                                                     c.to_ciphertext(&msg)
                                                 }
                                             };
@@ -542,6 +541,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         2 => CipherType::Playfair,
                                         3 => CipherType::Vigenere,
                                         4 => CipherType::Rc4,
+                                        5 => CipherType::Des,
                                         _ => CipherType::Caesar,
                                     };
                                     key_input.clear();
@@ -558,6 +558,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         2 => CipherType::Playfair,
                                         3 => CipherType::Vigenere,
                                         4 => CipherType::Rc4,
+                                        5 => CipherType::Des,
                                         _ => CipherType::Caesar,
                                     };
                                     key_input.clear();
