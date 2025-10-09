@@ -11,13 +11,14 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-// Importa as cifras
-use crate::ciphers::monoalphabetic::Monoalphabetic;
-use crate::ciphers::playfair::cipher::Playfair;
-use crate::ciphers::rc4::cipher::Rc4;
-use crate::ciphers::vigenere::Vigenere;
-use crate::ciphers::{cesar::Cesar, des::DES};
-use ciphers::Cipher;
+
+use tcp_chat::ciphers::monoalphabetic::Monoalphabetic;
+use tcp_chat::ciphers::playfair::cipher::Playfair;
+use tcp_chat::ciphers::rc4::cipher::Rc4;
+use tcp_chat::ciphers::vigenere::Vigenere;
+use tcp_chat::ciphers::Cipher;
+use tcp_chat::ciphers::{cesar::Cesar, des::DES};
+
 use textwrap::wrap;
 
 use ratatui::{
@@ -28,8 +29,6 @@ use ratatui::{
     widgets::Paragraph,
     Terminal,
 };
-
-pub mod ciphers;
 
 /// Representa uma mensagem no chat
 #[derive(Debug, Clone)]
@@ -69,8 +68,8 @@ fn setup_tcp_connection(tx: Sender<InputEvent>) -> TcpStream {
 }
 
 /// Envia mensagem para o servidor
-fn send_message(stream: &mut TcpStream, msg: &str) {
-    if let Err(e) = stream.write_all(msg.as_bytes()) {
+fn send_message(stream: &mut TcpStream, msg: &Vec<u8>) {
+    if let Err(e) = stream.write_all(msg) {
         eprintln!("Erro ao enviar: {}", e);
     }
     if let Err(e) = stream.write_all(b"\n") {
@@ -378,43 +377,46 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 }
                                 KeyCode::Enter => {
                                     if let Some(msg) = messages.get(selected_msg_idx) {
+                                        let content_buffer = msg.content.as_bytes().to_vec();
+
                                         let dec = match selected_cipher {
                                             CipherType::Caesar => {
                                                 let key: i8 =
                                                     decrypt_key_input.trim().parse().unwrap_or(3);
                                                 let mut c = Cesar::new(key);
-                                                c.to_plaintext(&msg.content)
+                                                c.to_plaintext(&content_buffer)
                                             }
                                             CipherType::Monoalphabetic => {
                                                 let mut c = Monoalphabetic::new(
                                                     decrypt_key_input.trim().to_string(),
                                                 );
-                                                c.to_plaintext(&msg.content)
+                                                c.to_plaintext(&content_buffer)
                                             }
                                             CipherType::Playfair => {
                                                 let mut c = Playfair::new(
                                                     decrypt_key_input.trim().to_string(),
                                                 );
-                                                c.to_plaintext(&msg.content)
+                                                c.to_plaintext(&content_buffer)
                                             }
                                             CipherType::Vigenere => {
                                                 let mut c = Vigenere::new(
                                                     decrypt_key_input.trim().to_string(),
                                                 );
-                                                c.to_plaintext(&msg.content)
+                                                c.to_plaintext(&content_buffer)
                                             }
                                             CipherType::Rc4 => {
                                                 let mut c =
                                                     Rc4::new(decrypt_key_input.trim().to_string());
-                                                c.to_plaintext(&msg.content)
+                                                c.to_plaintext(&content_buffer)
                                             }
                                             CipherType::Des => {
-                                                let mut c =
-                                                    DES::new(&decrypt_key_input.trim().to_string());
-                                                c.to_plaintext(&msg.content)
+                                                let mut c = DES::new(
+                                                    &decrypt_key_input.trim().as_bytes().to_vec(),
+                                                );
+                                                c.to_plaintext(&content_buffer)
                                             }
                                         };
-                                        decrypted_text = Some(dec);
+                                        decrypted_text = Some(String::from_utf8(dec).unwrap());
                                     }
                                     decrypt_mode = false;
                                     decrypt_key_input.clear();
@@ -467,46 +469,47 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     } else {
                                         // Envia mensagem normalmente
                                         if !input.trim().is_empty() {
-                                            let msg = input.clone();
+                                            let msg_content = input.as_bytes().to_vec();
                                             let ciphered = match selected_cipher {
                                                 CipherType::Caesar => {
                                                     let key: i8 =
                                                         key_input.trim().parse().unwrap_or(3);
                                                     let mut c = Cesar::new(key);
-                                                    c.to_ciphertext(&msg)
+                                                    c.to_ciphertext(&msg_content)
                                                 }
                                                 CipherType::Monoalphabetic => {
                                                     let mut c = Monoalphabetic::new(
                                                         key_input.trim().to_string(),
                                                     );
-                                                    c.to_ciphertext(&msg)
+                                                    c.to_ciphertext(&msg_content)
                                                 }
                                                 CipherType::Playfair => {
                                                     let mut c =
                                                         Playfair::new(key_input.trim().to_string());
-                                                    c.to_ciphertext(&msg)
+                                                    c.to_ciphertext(&msg_content)
                                                 }
                                                 CipherType::Vigenere => {
                                                     let mut c =
                                                         Vigenere::new(key_input.trim().to_string());
-                                                    c.to_ciphertext(&msg)
+                                                    c.to_ciphertext(&msg_content)
                                                 }
                                                 CipherType::Rc4 => {
                                                     let mut c =
                                                         Rc4::new(key_input.trim().to_string());
-                                                    c.to_ciphertext(&msg)
+                                                    c.to_ciphertext(&msg_content)
                                                 }
                                                 CipherType::Des => {
-                                                    let mut c =
-                                                        DES::new(&key_input.trim().to_string());
-                                                    c.to_ciphertext(&msg)
+                                                    let mut c = DES::new(
+                                                        &key_input.trim().as_bytes().to_vec(),
+                                                    );
+                                                    c.to_ciphertext(&msg_content)
                                                 }
                                             };
+                                            send_message(&mut stream, &ciphered);
                                             messages.push(Message {
-                                                content: ciphered.clone(),
+                                                content: String::from_utf8(ciphered).unwrap(),
                                                 is_mine: true,
                                             });
-                                            send_message(&mut stream, &ciphered);
                                             input.clear();
                                             // Ao enviar mensagem, seleciona a última recebida
                                             selected_msg_idx = messages.len().saturating_sub(1);

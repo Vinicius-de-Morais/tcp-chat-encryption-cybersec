@@ -1,4 +1,4 @@
-use crate::ciphers::{des, Cipher};
+use crate::ciphers::Cipher;
 
 pub mod bit;
 pub mod cipher;
@@ -9,37 +9,35 @@ pub struct DES {
 }
 
 impl DES {
-    pub fn new(key: &str) -> Self {
-        let keyu64 = DES::interpret_string_as_64_bit_hex(&key);
+    pub fn new(key: &Vec<u8>) -> Self {
+        let keyu64 = u64::from_be_bytes(DES::vec_to_array(key));
 
         DES { key: keyu64 }
     }
 
-    fn interpret_string_as_64_bit_hex(input: &str) -> u64 {
-        assert!(input.len() <= 18, "string de tamanho inválido");
+    fn vec_to_array(vec: &Vec<u8>) -> [u8; 8] {
+        let mut array: [u8; 8] = [0; 8];
 
-        let mut cleaned = input.to_string().to_lowercase();
-
-        if cleaned.starts_with("0x") {
-            cleaned.drain(0..2);
+        for (i, &value) in vec.iter().enumerate().take(8) {
+            array[i] = value;
         }
 
-        u64::from_str_radix(&cleaned, 16).unwrap()
+        array
     }
 }
 
 impl Cipher for DES {
-    fn to_ciphertext(&mut self, plaintext: &String) -> String {
-        let input = DES::interpret_string_as_64_bit_hex(&plaintext);
+    fn to_ciphertext(&mut self, plaintext: &Vec<u8>) -> Vec<u8> {
+        let input = u64::from_be_bytes(DES::vec_to_array(plaintext));
         let output = cipher::process(input, self.key, cipher::DESMode::Cipher);
 
-        format!("{:X}", output)
+        output.to_be_bytes().to_vec()
     }
 
-    fn to_plaintext(&mut self, ciphertext: &String) -> String {
-        let input = DES::interpret_string_as_64_bit_hex(&ciphertext);
+    fn to_plaintext(&mut self, ciphertext: &Vec<u8>) -> Vec<u8> {
+        let input = u64::from_be_bytes(DES::vec_to_array(ciphertext));
         let output = cipher::process(input, self.key, cipher::DESMode::Decipher);
 
-        format!("{:X}", output)
+        output.to_be_bytes().to_vec()
     }
 }

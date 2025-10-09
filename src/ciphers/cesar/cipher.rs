@@ -36,27 +36,43 @@ impl Cesar {
 }
 
 impl Cipher for Cesar {
-    fn to_ciphertext(&mut self, plaintext: &String) -> String {
-        self.process(plaintext, true)
+    fn to_ciphertext(&mut self, plaintext: &Vec<u8>) -> Vec<u8> {
+        let input = String::from_utf8(
+            plaintext
+                .iter()
+                .filter(|c| (**c > b'a' && **c < b'z') || (**c > b'A' && **c < b'Z'))
+                .map(|c| *c)
+                .collect::<Vec<u8>>(),
+        )
+        .unwrap();
+
+        self.process(&input, true).as_bytes().to_vec()
     }
 
-    fn to_plaintext(&mut self, ciphertext: &String) -> String {
-        self.process(ciphertext, false)
+    fn to_plaintext(&mut self, ciphertext: &Vec<u8>) -> Vec<u8> {
+        let input = String::from_utf8(
+            ciphertext
+                .iter()
+                .filter(|c| (**c > b'a' && **c < b'z') || (**c > b'A' && **c < b'Z'))
+                .map(|c| *c)
+                .collect::<Vec<u8>>(),
+        )
+        .unwrap();
+
+        self.process(&input, false).as_bytes().to_vec()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::fmt::write;
-
     use super::*;
 
     #[test]
     fn classic_example() {
         let mut v = Cesar::new(3);
-        let cipher = v.to_ciphertext(&"EVIDENCIAS fff".to_string());
-        assert_eq!(cipher, "HYLGHQFLDV iii");
+        let cipher = v.to_ciphertext(&"EVIDENCIAS fff".as_bytes().to_vec());
+        assert_eq!(cipher, "HYLGHQFLDV iii".as_bytes().to_vec());
         let plain = v.to_plaintext(&cipher);
-        assert_eq!(plain, "EVIDENCIAS fff");
+        assert_eq!(plain, "EVIDENCIAS fff".as_bytes().to_vec());
     }
 }

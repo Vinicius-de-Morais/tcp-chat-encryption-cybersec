@@ -62,12 +62,30 @@ impl Monoalphabetic {
 }
 
 impl Cipher for Monoalphabetic {
-    fn to_ciphertext(&mut self, plaintext: &String) -> String {
-        self.process(plaintext, true)
+    fn to_ciphertext(&mut self, plaintext: &Vec<u8>) -> Vec<u8> {
+        let input = String::from_utf8(
+            plaintext
+                .iter()
+                .filter(|c| (**c > b'a' && **c < b'z') || (**c > b'A' && **c < b'Z'))
+                .map(|c| *c)
+                .collect::<Vec<u8>>(),
+        )
+        .unwrap();
+
+        self.process(&input, true).as_bytes().to_vec()
     }
 
-    fn to_plaintext(&mut self, ciphertext: &String) -> String {
-        self.process(ciphertext, false)
+    fn to_plaintext(&mut self, ciphertext: &Vec<u8>) -> Vec<u8> {
+        let input = String::from_utf8(
+            ciphertext
+                .iter()
+                .filter(|c| (**c > b'a' && **c < b'z') || (**c > b'A' && **c < b'Z'))
+                .map(|c| *c)
+                .collect::<Vec<u8>>(),
+        )
+        .unwrap();
+
+        self.process(&input, false).as_bytes().to_vec()
     }
 }
 

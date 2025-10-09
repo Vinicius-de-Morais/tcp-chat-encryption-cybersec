@@ -2,7 +2,7 @@ use std::{collections::VecDeque, vec};
 
 use crate::{
     ciphers::des::bit::ToBitVec,
-    ciphers::des::bit::{Bit, Bitwise, ShiftLeft, StringBit, ToInteger},
+    ciphers::des::bit::{Bit, Bitwise, ShiftLeft, ToInteger},
     ciphers::des::tables::{
         FINAL_PERMUTATION_TABLE, INITIAL_PERMUTATION_TABLE, KEY_SHIFT, PC1, PC2, P_TABLE,
         RE_EXPANSION_TABLE, SBOX_TABLE,

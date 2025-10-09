@@ -1,6 +1,6 @@
 use crate::ciphers::Cipher;
 
-pub const ARRAY_SIZE : usize = 256;
+pub const ARRAY_SIZE: usize = 256;
 
 pub struct Rc4 {
     passkey: String,
@@ -8,11 +8,11 @@ pub struct Rc4 {
     s: Vec<u8>,
     i: usize,
     j: usize,
-    decripted: Vec<u8>
+    decripted: Vec<u8>,
 }
 
 impl Rc4 {
-    pub fn new(passkey: String) -> Rc4{
+    pub fn new(passkey: String) -> Rc4 {
         let mut s: Vec<u8> = (0..ARRAY_SIZE).map(|x| x as u8).collect();
         let key: Vec<u8> = passkey.as_bytes().to_vec();
         let mut swap_pos = 0;
@@ -33,13 +33,13 @@ impl Rc4 {
             s.swap(pos, swap_pos);
         }
 
-        Rc4{
+        Rc4 {
             passkey,
             key,
             s,
             i: 0,
             j: 0,
-            decripted: Vec::new()
+            decripted: Vec::new(),
         }
     }
 
@@ -68,18 +68,12 @@ impl Rc4 {
 }
 
 impl Cipher for Rc4 {
-    fn to_ciphertext(&mut self, plaintext: &String) -> String {
-        let bytes = self.process_bytes(plaintext.as_bytes());
-        bytes.iter().map(|b| b.to_string()).collect::<Vec<_>>().join(" ")
+    fn to_ciphertext(&mut self, plaintext: &Vec<u8>) -> Vec<u8> {
+        self.process_bytes(plaintext)
     }
 
-    fn to_plaintext(&mut self, ciphertext: &String) -> String {
-        let bytes = ciphertext
-            .split_whitespace()
-            .map(|num| num.parse::<u8>().unwrap())
-            .collect::<Vec<u8>>();
-        let decrypted_bytes = self.process_bytes(&bytes);
-        String::from_utf8(decrypted_bytes).unwrap()
+    fn to_plaintext(&mut self, ciphertext: &Vec<u8>) -> Vec<u8> {
+        self.process_bytes(ciphertext)
     }
 }
 
@@ -92,7 +86,9 @@ mod tests {
         let key = "D&Ot)[YW";
         let plaintext = "Cybersecurity melhor disciplina do curso.";
         let expected_cipher = [
-            214, 32, 110, 109, 116, 251, 159, 133, 226, 76, 193, 253, 168, 73, 65, 197, 82, 72, 93, 68, 250, 55, 28, 202, 59, 77, 186, 27, 97, 24, 48, 54, 106, 38, 82, 214, 222, 20, 20, 13, 251
+            214, 32, 110, 109, 116, 251, 159, 133, 226, 76, 193, 253, 168, 73, 65, 197, 82, 72, 93,
+            68, 250, 55, 28, 202, 59, 77, 186, 27, 97, 24, 48, 54, 106, 38, 82, 214, 222, 20, 20,
+            13, 251,
         ];
         let mut rc4 = Rc4::new(key.to_string());
         let cipher = rc4.process(plaintext.to_owned());
@@ -104,7 +100,9 @@ mod tests {
         let key = "$@C*9)6C{4^dXNw>H#W,be/\\'L2pM8r;JY?x}B]@A`T!q?iO`=n.Lgm(3z8@S[u]dY1k|%RI!MP-(FtZl&^3:jnK<TG6[5Jw}";
         let plaintext = "Cybersecurity melhor disciplina do curso.";
         let expected_cipher = [
-            84, 179, 117, 15, 203, 82, 18, 217, 141, 197, 213, 126, 47, 255, 83, 83, 99, 47, 120, 247, 192, 203, 33, 247, 220, 192, 213, 82, 241, 248, 166, 142, 129, 105, 50, 227, 178, 74, 181, 144, 94
+            84, 179, 117, 15, 203, 82, 18, 217, 141, 197, 213, 126, 47, 255, 83, 83, 99, 47, 120,
+            247, 192, 203, 33, 247, 220, 192, 213, 82, 241, 248, 166, 142, 129, 105, 50, 227, 178,
+            74, 181, 144, 94,
         ];
         let mut rc4 = Rc4::new(key.to_string());
         let cipher = rc4.process(plaintext.to_owned());
@@ -116,7 +114,9 @@ mod tests {
         let key = "!M|7s]u^{DFj^?8+fL:0Z!*%1P_3B}9m~V0@H^Qf7y&Z4Wb>kS^T<d.$.pL@R|g)x)-6(E&h%T-}(W%z{U9mZz8~m8BfP!c&@k7I\\5I~T_vD!4A>|oO[}3*T|$?e~0]V5&y@r1X2k+@T]j?|2|Q%}R,D)Up\\8gM;W}|7eNFk^t.h/j;6#y-!t5)\\^LJ[7S<4A,f$Ks1|&sX!w*G(Z@i>jE>6~]oA5]k'.:o=7n9h)$J_!aB{N-Jb1M}NzD\\*h";
         let plaintext = "Cybersecurity melhor disciplina do curso.";
         let expected_cipher = [
-            192, 115, 138, 155, 179, 72, 115, 33, 116, 105, 228, 122, 36, 92, 74, 122, 123, 245, 202, 209, 214, 199, 4, 191, 90, 96, 21, 15, 190, 222, 47, 58, 192, 192, 43, 10, 166, 63, 58, 96, 230
+            192, 115, 138, 155, 179, 72, 115, 33, 116, 105, 228, 122, 36, 92, 74, 122, 123, 245,
+            202, 209, 214, 199, 4, 191, 90, 96, 21, 15, 190, 222, 47, 58, 192, 192, 43, 10, 166,
+            63, 58, 96, 230,
         ];
         let mut rc4 = Rc4::new(key.to_string());
         let cipher = rc4.process(plaintext.to_owned());
@@ -128,14 +128,14 @@ mod tests {
         let key = "testkey";
         let plaintext = "Hello, RC4 Cipher!".to_string();
         let mut rc4 = Rc4::new(key.to_string());
-        let ciphertext = rc4.to_ciphertext(&plaintext);
+        let ciphertext = rc4.to_ciphertext(&plaintext.as_bytes().to_vec());
         // ciphertext is not readable, but should not equal plaintext
-        assert_ne!(ciphertext, plaintext);
+        assert_ne!(ciphertext, plaintext.as_bytes().to_vec());
 
         // New instance to reset state
         let mut rc4_decrypt = Rc4::new(key.to_string());
         let decrypted = rc4_decrypt.to_plaintext(&ciphertext);
-        assert_eq!(decrypted, plaintext);
+        assert_eq!(decrypted, plaintext.as_bytes().to_vec());
     }
 
     #[test]
@@ -143,20 +143,17 @@ mod tests {
         let key = "D&Ot)[YW";
         let plaintext = "Cybersecurity melhor disciplina do curso.".to_string();
         let expected_cipher = [
-            214, 32, 110, 109, 116, 251, 159, 133, 226, 76, 193, 253, 168, 73, 65, 197, 82, 72, 93, 68, 250, 55, 28, 202, 59, 77, 186, 27, 97, 24, 48, 54, 106, 38, 82, 214, 222, 20, 20, 13, 251
+            214, 32, 110, 109, 116, 251, 159, 133, 226, 76, 193, 253, 168, 73, 65, 197, 82, 72, 93,
+            68, 250, 55, 28, 202, 59, 77, 186, 27, 97, 24, 48, 54, 106, 38, 82, 214, 222, 20, 20,
+            13, 251,
         ];
         let mut rc4 = Rc4::new(key.to_string());
-        let ciphertext = rc4.to_ciphertext(&plaintext);
-        // Agora o ciphertext é uma string de números separados por espaço
-        let cipher_bytes = ciphertext
-            .split_whitespace()
-            .map(|num| num.parse::<u8>().unwrap())
-            .collect::<Vec<u8>>();
-        assert_eq!(cipher_bytes, expected_cipher);
+        let ciphertext = rc4.to_ciphertext(&plaintext.as_bytes().to_vec());
+        assert_eq!(ciphertext, expected_cipher);
 
         // Decrypt and check
         let mut rc4_decrypt = Rc4::new(key.to_string());
         let decrypted = rc4_decrypt.to_plaintext(&ciphertext);
-        assert_eq!(decrypted, plaintext);
+        assert_eq!(decrypted, plaintext.as_bytes().to_vec());
     }
 }

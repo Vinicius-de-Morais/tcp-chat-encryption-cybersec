@@ -17,9 +17,10 @@ impl Playfair {
         };
     }
 
-    fn prepare_plaintext_input(source: &String) -> Vec<Digraph> {
+    fn prepare_plaintext_input(source: &Vec<u8>) -> Vec<Digraph> {
         let mut filtered_chars: Vec<char> = source
-            .chars()
+            .into_iter()
+            .map(|c| char::from(*c))
             .map(|c| c.to_ascii_uppercase())
             .filter(|c| return c >= &'A' && c <= &'Z') // só permitir chars A-Z
             .map(|c| if c == 'I' { 'J' } else { c }) // substituir 'i' por 'j'
@@ -49,15 +50,15 @@ impl Playfair {
             .collect();
     }
 
-    fn prepare_cipher_input(source: &String) -> Vec<Digraph> {
+    fn prepare_cipher_input(source: &Vec<u8>) -> Vec<Digraph> {
         assert!(
             source.len() % 2 == 0,
-            "texto cifrado: \"{}\" não é múltiplo de 2, entrada inválida",
-            source
+            "texto cifrado não é múltiplo de 2, entrada inválida"
         );
 
         let filtered_chars: Vec<char> = source
-            .chars()
+            .into_iter()
+            .map(|c| char::from(*c))
             .map(|c| c.to_ascii_uppercase())
             .filter(|c| return c >= &'A' && c <= &'Z') // só permitir chars A-Z
             .map(|c| if c == 'I' { 'J' } else { c }) // substituir 'i' por 'j'
@@ -72,7 +73,7 @@ impl Playfair {
 }
 
 impl Cipher for Playfair {
-    fn to_ciphertext(&mut self, plaintext: &String) -> String {
+    fn to_ciphertext(&mut self, plaintext: &Vec<u8>) -> Vec<u8> {
         let input = Playfair::prepare_plaintext_input(&plaintext);
         let mut output: Vec<char> = vec![];
 
@@ -122,10 +123,10 @@ impl Cipher for Playfair {
             }
         }
 
-        return String::from_iter(output.iter());
+        String::from_iter(output.iter()).as_bytes().to_vec()
     }
 
-    fn to_plaintext(&mut self, ciphertext: &String) -> String {
+    fn to_plaintext(&mut self, ciphertext: &Vec<u8>) -> Vec<u8> {
         let input = Playfair::prepare_cipher_input(&ciphertext);
         let mut output: Vec<char> = vec![];
 
@@ -175,7 +176,7 @@ impl Cipher for Playfair {
             }
         }
 
-        return String::from_iter(output.iter());
+        String::from_iter(output.iter()).as_bytes().to_vec()
     }
 }
 
@@ -186,7 +187,7 @@ mod tests {
     #[test]
     fn input_explode() {
         let digraphs =
-            Playfair::prepare_plaintext_input(&"AULADESEGURANCADAINFORMACAO".to_string());
+            Playfair::prepare_plaintext_input(&"AULADESEGURANCADAINFORMACAO".as_bytes().to_vec());
 
         assert_eq!(
             digraphs,
@@ -209,7 +210,7 @@ mod tests {
         );
 
         assert_eq!(
-            Playfair::prepare_plaintext_input(&"SECRET MESSAGE".to_string()),
+            Playfair::prepare_plaintext_input(&"SECRET MESSAGE".as_bytes().to_vec()),
             [
                 ['S', 'E'],
                 ['C', 'R'],
@@ -226,17 +227,21 @@ mod tests {
     fn cipher_and_back() {
         let mut cipher = Playfair::new("Aula de Seguranca da Informacao".to_string());
         let ciphered = cipher.to_ciphertext(
-            &"Bomba Nuclear no Rio de Janeiro  xxxxdoisxxxmilxxxvintexxxseis".to_string(), // Playfair não suporta números
+            &"Bomba Nuclear no Rio de Janeiro  xxxxdoisxxxmilxxxvintexxxseis"
+                .as_bytes()
+                .to_vec(), // Playfair não suporta números
         );
 
         println!("Matrix: {}", cipher.matrix);
-        println!("Ciphered: {}", ciphered);
+        println!("Ciphered: {:?}", ciphered);
         let deciphered = cipher.to_plaintext(&ciphered);
-        println!("Deciphered: {}", deciphered);
+        println!("Deciphered: {:?}", deciphered);
 
         assert_eq!(
             deciphered,
             "BOMBANUCLEARNORJODEJANEJROXXXXXXXDOJSXXXXXMJLXXXXXVJNTEXXXXXSEJS"
+                .as_bytes()
+                .to_vec()
         );
     }
 }
