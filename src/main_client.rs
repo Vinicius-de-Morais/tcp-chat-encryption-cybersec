@@ -137,6 +137,12 @@ fn encrypt(cipher: protocol::Cipher, key: String, plain: String) -> Option<Vec<u
     Some(ciphered)
 }
 
+#[derive(PartialEq)]
+enum InterfaceState {
+    MessageInput,
+    KeyInput,
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Setup terminal
     enable_raw_mode()?;
@@ -160,9 +166,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut cipher_idx = 0;
 
     // Controle de texto separado para campo de mensagem e campo de chave
+    let mut ui_state = InterfaceState::MessageInput;
     let mut input = String::new();
     let mut key_input = "".to_string();
-    let mut is_user_editing_key_for_sending_msg = false; // false = editando mensagem, true = editando chave
     let mut decrypt_mode = false; // true = aguardando chave para decriptar mensagem
     let mut decrypted_text: Option<String> = None;
     let mut decrypt_key_input = String::new(); // campo exclusivo para chave de decriptação
@@ -200,7 +206,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let line = msg.content.clone();
                 // Se selecionada, aplica bloco visual
                 if is_selected {
-                    text.push(ratatui::text::Line::from(vec![Span::raw("")]));
                     let border_color = Color::Blue;
                     let block_title = if msg.is_mine {
                         "Você".to_string()
@@ -208,7 +213,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         "Recebida | F2 para decriptar".to_string()
                     };
 
-                    let width = (size.width - 8).max(20) as usize;
+                    let width = (size.width - 4).max(20) as usize;
                     let content_width = (width - 4).max(1);
 
                     // Borda de cima
@@ -216,7 +221,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         "╭{:─<w$}╮ {}",
                         "",
                         block_title,
-                        w = width - 2 - block_title.len().min(width - 2)
+                        w = width - block_title.len().min(width - 2) - 5
                     );
                     text.push(ratatui::text::Line::from(vec![Span::styled(
                         border_top,
@@ -275,14 +280,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         border_bot,
                         Style::default().fg(border_color),
                     )]));
-                    text.push(ratatui::text::Line::from(vec![Span::raw("")]));
                 } else {
                     // Mensagem normal
                     let width = (size.width - 8).max(20) as usize;
                     let content = if msg.is_mine {
-                        format!("{:>width$}", line, width = width)
+                        format!("  {:>width$}  ", line, width = width)
                     } else {
-                        format!("{:<width$}", line, width = width)
+                        format!("  {:<width$}  ", line, width = width)
                     };
                     text.push(ratatui::text::Line::from(vec![Span::styled(
                         content, line_style,
@@ -298,32 +302,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let msg_paragraph = Paragraph::new(text)
                 .block(msg_block)
                 .alignment(Alignment::Left);
-
-            // Campo de decriptação (aparece só no modo de decriptação)
-            let decrypt_block = if decrypt_mode {
-                let label = match selected_cipher {
-                    protocol::Cipher::Caesar => "Chave para decriptar (número)",
-                    protocol::Cipher::MonoalphabeticSubstitution => {
-                        "Chave para decriptar (26 letras)"
-                    }
-                    protocol::Cipher::Playfair => "Chave para decriptar (palavra)",
-                    protocol::Cipher::Vigenere => "Chave para decriptar (palavra)",
-                    protocol::Cipher::Rc4 => "Chave para decriptar (palavra)",
-                    protocol::Cipher::Des => "Chave para decriptar (hex)",
-                };
-                Some(
-                    Paragraph::new(decrypt_key_input.as_str())
-                        .block(
-                            Block::default()
-                                .borders(Borders::ALL)
-                                .border_style(Style::default().fg(Color::Yellow))
-                                .title(label),
-                        )
-                        .style(Style::default().fg(Color::Yellow)),
-                )
-            } else {
-                None
-            };
 
             let key_label = match selected_cipher {
                 protocol::Cipher::Caesar => "Chave (número)",
@@ -344,18 +322,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             f.render_widget(cipher_footer, CHUNK_CIPHER_INDICATOR);
             f.render_widget(msg_paragraph.clone(), CHUNK_MESSAGES_LIST);
+
+            // Campo de decriptação (aparece só no modo de decriptação)
             if decrypt_mode {
                 f.render_widget(msg_paragraph.clone(), CHUNK_MESSAGES_LIST);
-                if let Some(decrypt_block) = &decrypt_block {
-                    f.render_widget(decrypt_block, chunks[3]);
-                }
+
+                let label = match selected_cipher {
+                    protocol::Cipher::Caesar => "Chave para decriptar (número)",
+                    protocol::Cipher::MonoalphabeticSubstitution => {
+                        "Chave para decriptar (26 letras)"
+                    }
+                    protocol::Cipher::Playfair => "Chave para decriptar (palavra)",
+                    protocol::Cipher::Vigenere => "Chave para decriptar (palavra)",
+                    protocol::Cipher::Rc4 => "Chave para decriptar (palavra)",
+                    protocol::Cipher::Des => "Chave para decriptar (hex)",
+                };
+
+                f.render_widget(
+                    Paragraph::new(decrypt_key_input.as_str())
+                        .block(
+                            Block::default()
+                                .borders(Borders::ALL)
+                                .border_style(Style::default().fg(Color::Yellow))
+                                .title(label),
+                        )
+                        .style(Style::default().fg(Color::Yellow)),
+                    CHUNK_KEY_INPUT,
+                );
             } else {
-                if is_user_editing_key_for_sending_msg {
+                if ui_state == InterfaceState::KeyInput {
                     let key_block_1 = Paragraph::new(key_input.as_str())
                         .block(
                             Block::default()
                                 .borders(Borders::ALL)
-                                .border_style(if is_user_editing_key_for_sending_msg {
+                                .border_style(if ui_state == InterfaceState::KeyInput {
                                     Style::default().fg(Color::Blue)
                                 } else {
                                     Style::default().fg(Color::White)
@@ -384,7 +384,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .block(
                             Block::default()
                                 .borders(Borders::ALL)
-                                .border_style(if !is_user_editing_key_for_sending_msg {
+                                .border_style(if ui_state == InterfaceState::MessageInput {
                                     Style::default().fg(Color::Blue)
                                 } else {
                                     Style::default().fg(Color::White)
@@ -444,14 +444,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                         // ...............
 
-                        if is_user_editing_key_for_sending_msg {
+                        if ui_state == InterfaceState::KeyInput {
                             match key.code {
                                 KeyCode::Char(c) => key_input.push(c),
                                 KeyCode::Backspace => {
                                     key_input.pop();
                                 }
                                 KeyCode::Enter | KeyCode::Tab => {
-                                    is_user_editing_key_for_sending_msg = false;
+                                    ui_state = InterfaceState::MessageInput;
                                 }
                                 _ => {}
                             }
@@ -504,7 +504,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     input.pop();
                                 }
                                 KeyCode::Tab => {
-                                    is_user_editing_key_for_sending_msg = true;
+                                    ui_state = InterfaceState::KeyInput;
                                 }
                                 KeyCode::Up => {
                                     if selected_msg_idx > 0 {
@@ -545,6 +545,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Handle messages received from the server
         while let Ok(event) = rx.try_recv() {
             if let InputEvent::ServerMessage(content) = event {
+                if content.trim().len() < 1 {
+                    continue;
+                }
+
                 messages.push(Message {
                     content: content.trim().to_string(),
                     is_mine: false,
