@@ -12,12 +12,12 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-use tcp_chat::ciphers::monoalphabetic::Monoalphabetic;
-use tcp_chat::ciphers::playfair::cipher::Playfair;
 use tcp_chat::ciphers::rc4::cipher::Rc4;
 use tcp_chat::ciphers::vigenere::Vigenere;
 use tcp_chat::ciphers::Cipher;
 use tcp_chat::ciphers::{cesar::Cesar, des::DES};
+use tcp_chat::{ciphers::monoalphabetic::Monoalphabetic, protocol};
+use tcp_chat::{ciphers::playfair::cipher::Playfair, protocol::CIPHERS};
 
 use textwrap::wrap;
 
@@ -60,13 +60,6 @@ fn spawn_receiver_thread(stream: &TcpStream, tx: Sender<InputEvent>) {
     });
 }
 
-/// Conecta ao servidor e retorna a conexão
-fn setup_tcp_connection(tx: Sender<InputEvent>) -> TcpStream {
-    let stream = TcpStream::connect("127.0.0.1:8080").expect("Erro ao conectar");
-    spawn_receiver_thread(&stream, tx);
-    stream
-}
-
 /// Envia mensagem para o servidor
 fn send_message(stream: &mut TcpStream, msg: &Vec<u8>) {
     if let Err(e) = stream.write_all(msg) {
@@ -75,6 +68,73 @@ fn send_message(stream: &mut TcpStream, msg: &Vec<u8>) {
     if let Err(e) = stream.write_all(b"\n") {
         eprintln!("Erro ao enviar quebra de linha: {}", e);
     }
+}
+
+fn decrypt(cipher: protocol::Cipher, key: String, encrypted: &Vec<u8>) -> Option<String> {
+    let dec = match cipher {
+        protocol::Cipher::Caesar => {
+            let key: i8 = key.trim().parse().unwrap_or(3);
+            let mut c = Cesar::new(key);
+            c.to_plaintext(encrypted)
+        }
+        protocol::Cipher::MonoalphabeticSubstitution => {
+            let mut c = Monoalphabetic::new(key.trim().to_string());
+            c.to_plaintext(encrypted)
+        }
+        protocol::Cipher::Playfair => {
+            let mut c = Playfair::new(key.trim().to_string());
+            c.to_plaintext(encrypted)
+        }
+        protocol::Cipher::Vigenere => {
+            let mut c = Vigenere::new(key.trim().to_string());
+            c.to_plaintext(encrypted)
+        }
+        protocol::Cipher::Rc4 => {
+            let mut c = Rc4::new(key.trim().to_string());
+            c.to_plaintext(encrypted)
+        }
+        protocol::Cipher::Des => {
+            let mut c = DES::new(&key.trim().as_bytes().to_vec());
+            c.to_plaintext(encrypted)
+        }
+    };
+
+    String::from_utf8(dec).ok()
+}
+
+fn encrypt(cipher: protocol::Cipher, key: String, plain: String) -> Option<Vec<u8>> {
+    let key = key.trim().to_string();
+    let plain = plain.as_bytes().to_vec();
+
+    let ciphered = match cipher {
+        protocol::Cipher::Caesar => {
+            let key: i8 = key.parse().unwrap_or(3);
+            let mut c = Cesar::new(key);
+            c.to_ciphertext(&plain)
+        }
+        protocol::Cipher::MonoalphabeticSubstitution => {
+            let mut c = Monoalphabetic::new(key);
+            c.to_ciphertext(&plain)
+        }
+        protocol::Cipher::Playfair => {
+            let mut c = Playfair::new(key);
+            c.to_ciphertext(&plain)
+        }
+        protocol::Cipher::Vigenere => {
+            let mut c = Vigenere::new(key);
+            c.to_ciphertext(&plain)
+        }
+        protocol::Cipher::Rc4 => {
+            let mut c = Rc4::new(key);
+            c.to_ciphertext(&plain)
+        }
+        protocol::Cipher::Des => {
+            let mut c = DES::new(&key.as_bytes().to_vec());
+            c.to_ciphertext(&plain)
+        }
+    };
+
+    Some(ciphered)
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -88,49 +148,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Communication channel
     let (tx, rx): (Sender<InputEvent>, Receiver<InputEvent>) = mpsc::channel();
 
-    let mut stream = setup_tcp_connection(tx.clone());
+    let mut stream = TcpStream::connect("127.0.0.1:8080").expect("Erro ao conectar");
+    spawn_receiver_thread(&stream, tx.clone());
 
     // State
     let mut messages: Vec<Message> = Vec::new();
     // Índice da mensagem selecionada (para highlight e decriptação)
     let mut selected_msg_idx: usize = 0;
-    // Estado para cifra selecionada
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    enum CipherType {
-        Caesar,
-        Monoalphabetic,
-        Playfair,
-        Vigenere,
-        Rc4,
-        Des,
-    }
-    let mut selected_cipher = CipherType::Playfair;
-    let cipher_names = [
-        "Caesar",
-        "Monoalphabetic",
-        "Playfair",
-        "Vigenere",
-        "Rc4",
-        "Des",
-    ];
-    let mut cipher_idx = 2;
+
+    let mut selected_cipher = protocol::Cipher::Caesar;
+    let mut cipher_idx = 0;
 
     // Controle de texto separado para campo de mensagem e campo de chave
     let mut input = String::new();
-    let mut key_input = "informatica".to_string();
-    let mut editing_key = false; // false = editando mensagem, true = editando chave
+    let mut key_input = "".to_string();
+    let mut is_user_editing_key_for_sending_msg = false; // false = editando mensagem, true = editando chave
     let mut decrypt_mode = false; // true = aguardando chave para decriptar mensagem
     let mut decrypted_text: Option<String> = None;
     let mut decrypt_key_input = String::new(); // campo exclusivo para chave de decriptação
-
-    messages.push(Message {
-        content: "pmb nfv bnjhp nbop".to_string(), // caesar, chave 1
-        is_mine: false,
-    });
-    messages.push(Message {
-        content: "CGEAHZRSORFBKGBLLOTY".to_string(), // playfair, chave "informatica"
-        is_mine: false,
-    });
 
     loop {
         terminal.draw(|f| {
@@ -142,10 +177,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Constraint::Min(1),
                     Constraint::Length(3),
                     Constraint::Length(3),
+                    Constraint::Length(1),
                 ])
                 .split(size);
 
+            let CHUNK_MESSAGES_LIST = chunks[0];
+            let CHUNK_MSG_INPUT = chunks[1];
+            let CHUNK_KEY_INPUT = chunks[2];
+            let CHUNK_CIPHER_INDICATOR = chunks[3];
+
             use ratatui::widgets::{Block, BorderType, Borders};
+
+            // renderizar mensagens
             let mut text: Vec<ratatui::text::Line> = Vec::new();
             for (i, msg) in messages.iter().enumerate() {
                 let is_selected = i == selected_msg_idx;
@@ -246,6 +289,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     )]));
                 }
             }
+
             let msg_block = Block::default()
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
@@ -258,12 +302,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Campo de decriptação (aparece só no modo de decriptação)
             let decrypt_block = if decrypt_mode {
                 let label = match selected_cipher {
-                    CipherType::Caesar => "Chave para decriptar (número)",
-                    CipherType::Monoalphabetic => "Chave para decriptar (26 letras)",
-                    CipherType::Playfair => "Chave para decriptar (palavra)",
-                    CipherType::Vigenere => "Chave para decriptar (palavra)",
-                    CipherType::Rc4 => "Chave para decriptar (palavra)",
-                    CipherType::Des => "Chave para decriptar (hex)",
+                    protocol::Cipher::Caesar => "Chave para decriptar (número)",
+                    protocol::Cipher::MonoalphabeticSubstitution => {
+                        "Chave para decriptar (26 letras)"
+                    }
+                    protocol::Cipher::Playfair => "Chave para decriptar (palavra)",
+                    protocol::Cipher::Vigenere => "Chave para decriptar (palavra)",
+                    protocol::Cipher::Rc4 => "Chave para decriptar (palavra)",
+                    protocol::Cipher::Des => "Chave para decriptar (hex)",
                 };
                 Some(
                     Paragraph::new(decrypt_key_input.as_str())
@@ -279,89 +325,88 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 None
             };
 
-            let input_block_1 = Paragraph::new(input.as_str())
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .border_style(if !editing_key {
-                            Style::default().fg(Color::Blue)
-                        } else {
-                            Style::default().fg(Color::White)
-                        })
-                        .title("Mensagem (ENTER para enviar, TAB para chave)"),
-                )
-                .style(Style::default().fg(Color::White));
-            let input_block_2 = Paragraph::new(input.as_str())
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .border_style(Style::default().fg(Color::White))
-                        .title("Mensagem"),
-                )
-                .style(Style::default().fg(Color::White));
-
             let key_label = match selected_cipher {
-                CipherType::Caesar => "Chave (número)",
-                CipherType::Monoalphabetic => "Chave (26 letras)",
-                CipherType::Playfair => "Chave (palavra)",
-                CipherType::Vigenere => "Chave (palavra)",
-                CipherType::Rc4 => "Chave (palavra)",
-                CipherType::Des => "Chave (hex)",
+                protocol::Cipher::Caesar => "Chave (número)",
+                protocol::Cipher::MonoalphabeticSubstitution => "Chave (26 letras)",
+                protocol::Cipher::Playfair => "Chave (palavra)",
+                protocol::Cipher::Vigenere => "Chave (palavra)",
+                protocol::Cipher::Rc4 => "Chave (palavra)",
+                protocol::Cipher::Des => "Chave (hex)",
             };
-            let key_block_1 = Paragraph::new(key_input.as_str())
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .border_style(if editing_key {
-                            Style::default().fg(Color::Blue)
-                        } else {
-                            Style::default().fg(Color::White)
-                        })
-                        .title(format!(
-                            "{} [ENTER para confirmar, TAB para mensagem]",
-                            key_label
-                        )),
-                )
-                .style(Style::default().fg(Color::White));
-            let key_block_2 = Paragraph::new(key_input.as_str())
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .border_style(Style::default().fg(Color::White))
-                        .title(format!("{} (TAB para editar)", key_label)),
-                )
-                .style(Style::default().fg(Color::White));
 
             // Rodapé para seleção de cifra
             let cipher_footer = Paragraph::new(format!(
                 "Cifra: < {} > (← → para trocar)",
-                cipher_names[cipher_idx]
+                CIPHERS[cipher_idx].to_string()
             ))
             .style(Style::default().fg(Color::Yellow))
-            .alignment(Alignment::Center)
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title("Very Good Chat Messenger"),
-            );
+            .alignment(Alignment::Center);
 
-            f.render_widget(msg_paragraph.clone(), chunks[0]);
+            f.render_widget(cipher_footer, CHUNK_CIPHER_INDICATOR);
+            f.render_widget(msg_paragraph.clone(), CHUNK_MESSAGES_LIST);
             if decrypt_mode {
-                f.render_widget(msg_paragraph.clone(), chunks[0]);
-                f.render_widget(input_block_2, chunks[1]);
+                f.render_widget(msg_paragraph.clone(), CHUNK_MESSAGES_LIST);
                 if let Some(decrypt_block) = &decrypt_block {
-                    f.render_widget(decrypt_block, chunks[2]);
+                    f.render_widget(decrypt_block, chunks[3]);
                 }
-            } else if editing_key {
-                f.render_widget(key_block_1, chunks[1]);
-                f.render_widget(input_block_2, chunks[2]);
-                f.render_widget(msg_paragraph.clone(), chunks[0]);
             } else {
-                f.render_widget(input_block_1, chunks[1]);
-                f.render_widget(key_block_2, chunks[2]);
-                f.render_widget(msg_paragraph, chunks[0]);
+                if is_user_editing_key_for_sending_msg {
+                    let key_block_1 = Paragraph::new(key_input.as_str())
+                        .block(
+                            Block::default()
+                                .borders(Borders::ALL)
+                                .border_style(if is_user_editing_key_for_sending_msg {
+                                    Style::default().fg(Color::Blue)
+                                } else {
+                                    Style::default().fg(Color::White)
+                                })
+                                .title(format!(
+                                    "{} [ENTER para confirmar, TAB para mensagem]",
+                                    key_label
+                                )),
+                        )
+                        .style(Style::default().fg(Color::White));
+
+                    let input_block_2 = Paragraph::new(input.as_str())
+                        .block(
+                            Block::default()
+                                .borders(Borders::ALL)
+                                .border_style(Style::default().fg(Color::White))
+                                .title("Mensagem"),
+                        )
+                        .style(Style::default().fg(Color::White));
+
+                    f.render_widget(msg_paragraph.clone(), CHUNK_MESSAGES_LIST);
+                    f.render_widget(key_block_1, CHUNK_MSG_INPUT);
+                    f.render_widget(input_block_2, CHUNK_KEY_INPUT);
+                } else {
+                    let input_block_1 = Paragraph::new(input.as_str())
+                        .block(
+                            Block::default()
+                                .borders(Borders::ALL)
+                                .border_style(if !is_user_editing_key_for_sending_msg {
+                                    Style::default().fg(Color::Blue)
+                                } else {
+                                    Style::default().fg(Color::White)
+                                })
+                                .title("Mensagem (ENTER para enviar, TAB para chave)"),
+                        )
+                        .style(Style::default().fg(Color::White));
+
+                    let key_block_2 = Paragraph::new(key_input.as_str())
+                        .block(
+                            Block::default()
+                                .borders(Borders::ALL)
+                                .border_style(Style::default().fg(Color::White))
+                                .title(format!("{} (TAB para editar)", key_label)),
+                        )
+                        .style(Style::default().fg(Color::White));
+
+                    f.render_widget(msg_paragraph, CHUNK_MESSAGES_LIST);
+                    f.render_widget(input_block_1, CHUNK_MSG_INPUT);
+                    f.render_widget(key_block_2, CHUNK_KEY_INPUT);
+                }
             }
-            f.render_widget(cipher_footer, size);
         })?;
 
         // Handle key events
@@ -379,44 +424,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     if let Some(msg) = messages.get(selected_msg_idx) {
                                         let content_buffer = msg.content.as_bytes().to_vec();
 
-                                        let dec = match selected_cipher {
-                                            CipherType::Caesar => {
-                                                let key: i8 =
-                                                    decrypt_key_input.trim().parse().unwrap_or(3);
-                                                let mut c = Cesar::new(key);
-                                                c.to_plaintext(&content_buffer)
-                                            }
-                                            CipherType::Monoalphabetic => {
-                                                let mut c = Monoalphabetic::new(
-                                                    decrypt_key_input.trim().to_string(),
-                                                );
-                                                c.to_plaintext(&content_buffer)
-                                            }
-                                            CipherType::Playfair => {
-                                                let mut c = Playfair::new(
-                                                    decrypt_key_input.trim().to_string(),
-                                                );
-                                                c.to_plaintext(&content_buffer)
-                                            }
-                                            CipherType::Vigenere => {
-                                                let mut c = Vigenere::new(
-                                                    decrypt_key_input.trim().to_string(),
-                                                );
-                                                c.to_plaintext(&content_buffer)
-                                            }
-                                            CipherType::Rc4 => {
-                                                let mut c =
-                                                    Rc4::new(decrypt_key_input.trim().to_string());
-                                                c.to_plaintext(&content_buffer)
-                                            }
-                                            CipherType::Des => {
-                                                let mut c = DES::new(
-                                                    &decrypt_key_input.trim().as_bytes().to_vec(),
-                                                );
-                                                c.to_plaintext(&content_buffer)
-                                            }
-                                        };
-                                        decrypted_text = Some(String::from_utf8(dec).unwrap());
+                                        decrypted_text = decrypt(
+                                            selected_cipher,
+                                            key_input.clone(),
+                                            &content_buffer,
+                                        );
                                     }
                                     decrypt_mode = false;
                                     decrypt_key_input.clear();
@@ -432,14 +444,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                         // ...............
 
-                        if editing_key {
+                        if is_user_editing_key_for_sending_msg {
                             match key.code {
                                 KeyCode::Char(c) => key_input.push(c),
                                 KeyCode::Backspace => {
                                     key_input.pop();
                                 }
                                 KeyCode::Enter | KeyCode::Tab => {
-                                    editing_key = false;
+                                    is_user_editing_key_for_sending_msg = false;
                                 }
                                 _ => {}
                             }
@@ -469,42 +481,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     } else {
                                         // Envia mensagem normalmente
                                         if !input.trim().is_empty() {
-                                            let msg_content = input.as_bytes().to_vec();
-                                            let ciphered = match selected_cipher {
-                                                CipherType::Caesar => {
-                                                    let key: i8 =
-                                                        key_input.trim().parse().unwrap_or(3);
-                                                    let mut c = Cesar::new(key);
-                                                    c.to_ciphertext(&msg_content)
-                                                }
-                                                CipherType::Monoalphabetic => {
-                                                    let mut c = Monoalphabetic::new(
-                                                        key_input.trim().to_string(),
-                                                    );
-                                                    c.to_ciphertext(&msg_content)
-                                                }
-                                                CipherType::Playfair => {
-                                                    let mut c =
-                                                        Playfair::new(key_input.trim().to_string());
-                                                    c.to_ciphertext(&msg_content)
-                                                }
-                                                CipherType::Vigenere => {
-                                                    let mut c =
-                                                        Vigenere::new(key_input.trim().to_string());
-                                                    c.to_ciphertext(&msg_content)
-                                                }
-                                                CipherType::Rc4 => {
-                                                    let mut c =
-                                                        Rc4::new(key_input.trim().to_string());
-                                                    c.to_ciphertext(&msg_content)
-                                                }
-                                                CipherType::Des => {
-                                                    let mut c = DES::new(
-                                                        &key_input.trim().as_bytes().to_vec(),
-                                                    );
-                                                    c.to_ciphertext(&msg_content)
-                                                }
-                                            };
+                                            let ciphered = encrypt(
+                                                selected_cipher,
+                                                key_input.clone(),
+                                                input.clone(),
+                                            )
+                                            .unwrap();
                                             send_message(&mut stream, &ciphered);
                                             messages.push(Message {
                                                 content: String::from_utf8(ciphered).unwrap(),
@@ -522,7 +504,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     input.pop();
                                 }
                                 KeyCode::Tab => {
-                                    editing_key = true;
+                                    is_user_editing_key_for_sending_msg = true;
                                 }
                                 KeyCode::Up => {
                                     if selected_msg_idx > 0 {
@@ -536,34 +518,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         decrypted_text = None;
                                     }
                                 }
-                                KeyCode::Right => {
-                                    cipher_idx = (cipher_idx + 1) % cipher_names.len();
-                                    selected_cipher = match cipher_idx {
-                                        0 => CipherType::Caesar,
-                                        1 => CipherType::Monoalphabetic,
-                                        2 => CipherType::Playfair,
-                                        3 => CipherType::Vigenere,
-                                        4 => CipherType::Rc4,
-                                        5 => CipherType::Des,
-                                        _ => CipherType::Caesar,
-                                    };
-                                    key_input.clear();
-                                }
                                 KeyCode::Left => {
                                     if cipher_idx > 0 {
                                         cipher_idx -= 1;
                                     } else {
-                                        cipher_idx = cipher_names.len() - 1;
+                                        cipher_idx = CIPHERS.len() - 1;
                                     }
-                                    selected_cipher = match cipher_idx {
-                                        0 => CipherType::Caesar,
-                                        1 => CipherType::Monoalphabetic,
-                                        2 => CipherType::Playfair,
-                                        3 => CipherType::Vigenere,
-                                        4 => CipherType::Rc4,
-                                        5 => CipherType::Des,
-                                        _ => CipherType::Caesar,
-                                    };
+                                    selected_cipher = CIPHERS[cipher_idx];
+                                    key_input.clear();
+                                }
+                                KeyCode::Right => {
+                                    cipher_idx = (cipher_idx + 1) % CIPHERS.len();
+                                    selected_cipher = CIPHERS[cipher_idx];
                                     key_input.clear();
                                 }
                                 KeyCode::Esc => break,
